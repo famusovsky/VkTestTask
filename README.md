@@ -22,7 +22,7 @@ docker-compose up
 // DB_USER
 // DB_PASSWORD
 // DB_NAME
-go run ./cmd/main.go // -create_tables=true - запуск с автоматическим созданием таблиц в БД
+go run ./cmd/main.go // -override_tables=true - запуск с автоматическим созданием таблиц в БД
 ```
 
 <!-- XXX -->

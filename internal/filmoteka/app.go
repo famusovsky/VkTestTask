@@ -26,7 +26,7 @@ type App struct {
 // Принимает: логгер, обработчик БД.
 //
 // Возвращает: приложение.
-func CreateApp(addr string, infoLog *log.Logger, errorLog *log.Logger,
+func CreateApp(infoLog *log.Logger, errorLog *log.Logger,
 	dbHandler postgres.DbHandler) *App {
 	return &App{
 		infoLog:   infoLog,
@@ -59,6 +59,7 @@ func (app *App) Run(addr string) {
 	})
 
 	go func() {
+		app.infoLog.Printf("starting srvr on %s\n", addr)
 		err := srvr.ListenAndServe()
 		app.errorLog.Fatal(err)
 	}()
@@ -67,5 +68,6 @@ func (app *App) Run(addr string) {
 		app.infoLog.Printf("gracefully shutting down the server: %v", err)
 	}
 
-	_ = srvr.Shutdown(context.Background()) // check error!
+	err := srvr.Shutdown(context.Background())
+	app.errorLog.Fatal(err)
 }

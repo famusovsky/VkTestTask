@@ -1,8 +1,13 @@
-FROM golang:1.21-alpine
+FROM golang:1.22.1-alpine
 
 WORKDIR /
+# FIXME create tables normally somehow
+ARG override_tables=false
+ARG port=8888
+ENV OVERRIDE=$override_tables
+ENV PORT=$port
 
-ARG create_tables=false
+RUN echo ${port}
 
 COPY go.mod go.sum ./
 
@@ -10,8 +15,8 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-RUN go build -o main ./cmd/api
+RUN go build -o out ./cmd/api
 
-EXPOSE 8080
+EXPOSE ${port}
 
-CMD [ "./main", "-create_tables", "${create_tables}" ]
+CMD [ "sh", "-c", "./out -override_tables=$OVERRIDE -addr=:$PORT" ]

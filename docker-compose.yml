@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - create_tables=true
+        - override_tables=true
+        - port=${API_PORT}
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -33,7 +34,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${API_PORT}:${API_PORT}"
 
 volumes:
   db_data:
