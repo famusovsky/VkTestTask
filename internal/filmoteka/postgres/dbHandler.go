@@ -17,13 +17,13 @@ type DbHandler interface {
 	GetActor(id int) (models.Actor, error)
 	GetActors() ([]models.Actor, error)
 
-	AddMoovie(name, description string, releaseDate time.Time, rating int, actors []int) (int, error)
-	UpdateMoovie(id int, name, description string, releaseDate time.Time, rating int, actors []int) error
-	DeleteMoovie(id int) error
-	GetMoovie(id int) (models.Moovie, error)
-	GetMoovies(sortType int) ([]models.Moovie, error)
-	GetMooviesByActor(name string) ([]models.Moovie, error)
-	GetMooviesByName(name string) ([]models.Moovie, error)
+	AddMovie(name, description string, releaseDate time.Time, rating int, actors []int) (int, error)
+	UpdateMovie(id int, name, description string, releaseDate time.Time, rating int, actors []int) error
+	DeleteMovie(id int) error
+	GetMovie(id int) (models.Movie, error)
+	GetMovies(sortType int) ([]models.Movie, error)
+	GetMoviesByActor(name string) ([]models.Movie, error)
+	GetMoviesByName(name string) ([]models.Movie, error)
 
 	AddUser(name, password string, isAdmin bool) (int, error)
 	CheckUserRole(name, password string) (bool, error)

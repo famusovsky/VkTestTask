@@ -2,8 +2,8 @@ package models
 
 import "time"
 
-// Moovie - структура, представляющая фильм.
-type Moovie struct {
+// Movie - структура, представляющая фильм.
+type Movie struct {
 	Id          int       `json:"id" db:"id"`                     // Id - id фильма.
 	Name        string    `json:"name" db:"name"`                 // Name - название фильма.
 	Description string    `json:"description" db:"description"`   // Description - описание фильма.

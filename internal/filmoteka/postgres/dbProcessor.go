@@ -29,7 +29,7 @@ func overrideDB(db *sql.DB) error {
 
 // dropTables - функция, удаляющая таблицы фильмотеки в БД.
 func dropTables(db *sql.DB) error {
-	q := strings.Join([]string{dropMoovieActors, dropActors, dropMoovies, dropUsers}, " ")
+	q := strings.Join([]string{dropMovieActors, dropActors, dropMovies, dropUsers}, " ")
 
 	_, err := db.Exec(q)
 	if err != nil {
@@ -41,7 +41,7 @@ func dropTables(db *sql.DB) error {
 
 // createTables - функция, добавляющая таблицы фильмотеки в БД.
 func createTables(db *sql.DB) error {
-	q := strings.Join([]string{createActors, createMoovies, createUsers, createActorMoovieRelations}, " ")
+	q := strings.Join([]string{createActors, createMovies, createUsers, createActorMovieRelations}, " ")
 
 	_, err := db.Exec(q)
 	if err != nil {
@@ -99,8 +99,8 @@ func (d dbProcessor) AddUser(name string, password string, isAdmin bool) (int, e
 		name, password, isAdmin)
 }
 
-// AddMoovie implements DbHandler.
-func (d dbProcessor) AddMoovie(name string, description string, releaseDate time.Time, rating int, actors []int) (int, error) {
+// AddMovie implements DbHandler.
+func (d dbProcessor) AddMovie(name string, description string, releaseDate time.Time, rating int, actors []int) (int, error) {
 	wrapErr := errors.New("error while inserting actor")
 	tx, err := d.db.Begin()
 	if err != nil {
@@ -109,13 +109,13 @@ func (d dbProcessor) AddMoovie(name string, description string, releaseDate time
 	defer tx.Rollback()
 
 	var id int
-	err = tx.QueryRow(addMoovie, name, description, releaseDate, rating).Scan(&id)
+	err = tx.QueryRow(addMovie, name, description, releaseDate, rating).Scan(&id)
 	if err != nil {
 		return 0, errors.Join(wrapErr, err)
 	}
 
 	for _, actorId := range actors {
-		err := d.addActorToMoovie(tx, actorId, id)
+		err := d.addActorToMovie(tx, actorId, id)
 		if err != nil {
 			return 0, errors.Join(wrapErr, err)
 		}
@@ -129,10 +129,10 @@ func (d dbProcessor) AddMoovie(name string, description string, releaseDate time
 	return id, nil
 }
 
-func (d dbProcessor) addActorToMoovie(tx *sql.Tx, actorId, moovieId int) error {
-	_, err := tx.Exec(addActorToMoovie, moovieId, actorId)
+func (d dbProcessor) addActorToMovie(tx *sql.Tx, actorId, movieId int) error {
+	_, err := tx.Exec(addActorToMovie, movieId, actorId)
 	if err != nil {
-		return errors.Join(fmt.Errorf("error while adding actor %d to moovie %d", actorId, moovieId), err)
+		return errors.Join(fmt.Errorf("error while adding actor %d to movie %d", actorId, movieId), err)
 	}
 
 	return nil
@@ -175,9 +175,9 @@ func (d dbProcessor) DeleteActor(id int) error {
 	return d.deleteSmth(removeActor, fmt.Sprintf("error while deleting actor %d", id))
 }
 
-// DeleteMoovie implements DbHandler.
-func (d dbProcessor) DeleteMoovie(id int) error {
-	return d.deleteSmth(removeMoovie, fmt.Sprintf("error while deleting moovie %d", id))
+// DeleteMovie implements DbHandler.
+func (d dbProcessor) DeleteMovie(id int) error {
+	return d.deleteSmth(removeMovie, fmt.Sprintf("error while deleting movie %d", id))
 }
 
 // GetActor implements DbHandler.
@@ -202,26 +202,26 @@ func (d dbProcessor) GetActors() ([]models.Actor, error) {
 	return actors, nil
 }
 
-// GetMoovie implements DbHandler.
-func (d dbProcessor) GetMoovie(id int) (models.Moovie, error) {
-	wrapErr := fmt.Errorf("error while getting moovie %d", id)
-	var moovie models.Moovie
-	err := d.db.Select(&moovie, getMoovie)
+// GetMovie implements DbHandler.
+func (d dbProcessor) GetMovie(id int) (models.Movie, error) {
+	wrapErr := fmt.Errorf("error while getting movie %d", id)
+	var movie models.Movie
+	err := d.db.Select(&movie, getMovie)
 	if err != nil {
-		return models.Moovie{}, errors.Join(wrapErr, err)
+		return models.Movie{}, errors.Join(wrapErr, err)
 	}
 
-	err = d.db.Select(&moovie.Actors, getMoovieActors, id)
+	err = d.db.Select(&movie.Actors, getMovieActors, id)
 	if err != nil {
-		return models.Moovie{}, errors.Join(wrapErr, err)
+		return models.Movie{}, errors.Join(wrapErr, err)
 	}
 
-	return moovie, nil
+	return movie, nil
 }
 
-func (d dbProcessor) fillMoovies(moovies []models.Moovie) error {
-	for i := range len(moovies) {
-		err := d.db.Select(&moovies[i].Actors, getMoovieActors, moovies[i].Id)
+func (d dbProcessor) fillMovies(movies []models.Movie) error {
+	for i := range len(movies) {
+		err := d.db.Select(&movies[i].Actors, getMovieActors, movies[i].Id)
 		if err != nil {
 			return err
 		}
@@ -230,65 +230,65 @@ func (d dbProcessor) fillMoovies(moovies []models.Moovie) error {
 	return nil
 }
 
-// GetMoovies implements DbHandler.
-func (d dbProcessor) GetMoovies(sortType int) ([]models.Moovie, error) {
-	wrapErr := errors.New("error while getting moovies")
-	var moovies []models.Moovie
+// GetMovies implements DbHandler.
+func (d dbProcessor) GetMovies(sortType int) ([]models.Movie, error) {
+	wrapErr := errors.New("error while getting movies")
+	var movies []models.Movie
 	var err error
 	switch sortType {
 	case models.SortByRating:
-		err = d.db.Select(&moovies, getMooviesSortByRating)
+		err = d.db.Select(&movies, getMoviesSortByRating)
 	case models.SortByName:
-		err = d.db.Select(&moovies, getMooviesSortByName)
+		err = d.db.Select(&movies, getMoviesSortByName)
 	case models.SortByReleaseDate:
-		err = d.db.Select(&moovies, getMooviesSortByReleaseDate)
+		err = d.db.Select(&movies, getMoviesSortByReleaseDate)
 	}
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	err = d.fillMoovies(moovies)
+	err = d.fillMovies(movies)
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	return moovies, nil
+	return movies, nil
 }
 
-// GetMooviesByActor implements DbHandler.
-func (d dbProcessor) GetMooviesByActor(name string) ([]models.Moovie, error) {
-	wrapErr := errors.New("error while getting moovies by actor")
-	var moovies []models.Moovie
-	err := d.db.Select(&moovies, getMooviesByActor, name)
+// GetMoviesByActor implements DbHandler.
+func (d dbProcessor) GetMoviesByActor(name string) ([]models.Movie, error) {
+	wrapErr := errors.New("error while getting movies by actor")
+	var movies []models.Movie
+	err := d.db.Select(&movies, getMoviesByActor, name)
 
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	err = d.fillMoovies(moovies)
+	err = d.fillMovies(movies)
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	return moovies, nil
+	return movies, nil
 }
 
-// GetMooviesByName implements DbHandler.
-func (d dbProcessor) GetMooviesByName(name string) ([]models.Moovie, error) {
-	wrapErr := errors.New("error while getting moovies by name")
-	var moovies []models.Moovie
-	err := d.db.Select(&moovies, getMooviesByName, name)
+// GetMoviesByName implements DbHandler.
+func (d dbProcessor) GetMoviesByName(name string) ([]models.Movie, error) {
+	wrapErr := errors.New("error while getting movies by name")
+	var movies []models.Movie
+	err := d.db.Select(&movies, getMoviesByName, name)
 
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	err = d.fillMoovies(moovies)
+	err = d.fillMovies(movies)
 	if err != nil {
 		return nil, errors.Join(wrapErr, err)
 	}
 
-	return moovies, nil
+	return movies, nil
 }
 
 // UpdateActor implements DbHandler.
@@ -313,27 +313,27 @@ func (d dbProcessor) UpdateActor(id int, name string, gender string, dateOfBirth
 	return err
 }
 
-// UpdateMoovie implements DbHandler.
-func (d dbProcessor) UpdateMoovie(id int, name string, description string, releaseDate time.Time, rating int, actors []int) error {
-	wrapErr := fmt.Errorf("error while updating moovie %d", id)
+// UpdateMovie implements DbHandler.
+func (d dbProcessor) UpdateMovie(id int, name string, description string, releaseDate time.Time, rating int, actors []int) error {
+	wrapErr := fmt.Errorf("error while updating movie %d", id)
 	tx, err := d.db.Begin()
 	if err != nil {
 		return errors.Join(wrapErr, errBeginTx, err)
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(updateMoovie, id, name, description, releaseDate, rating)
+	_, err = tx.Exec(updateMovie, id, name, description, releaseDate, rating)
 	if err != nil {
 		return errors.Join(wrapErr, err)
 	}
 
-	_, err = tx.Exec(removeMoovieFromActors, id)
+	_, err = tx.Exec(removeMovieFromActors, id)
 	if err != nil {
 		return errors.Join(wrapErr, err)
 	}
 
 	for _, actorId := range actors {
-		err := d.addActorToMoovie(tx, actorId, id)
+		err := d.addActorToMovie(tx, actorId, id)
 		if err != nil {
 			return errors.Join(wrapErr, err)
 		}
