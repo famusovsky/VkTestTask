@@ -71,9 +71,19 @@ const (
 // SQL запросы для обновления данных.
 const (
 	// SQL запрос для обновления фильма по id, name, description, release_date, rating.
-	updateMovie = `UPDATE movies SET name = $2, description = $3, release_date = $4, rating = $5 WHERE id = $1;`
-	// SQL запрос для обновления актёра по id, name, gender, date_of_birth.
-	updateActor = `UPDATE actors SET name = $2, gender = $3, date_of_birth = $4 WHERE id = $1;`
+	updateMovieName = `UPDATE movies SET name = $2 WHERE id = $1;`
+	// SQL запрос для обновления фильма по id, description
+	updateMovieDescription = `UPDATE movies SET description = $2 WHERE id = $1;`
+	// SQL запрос для обновления фильма по id, release_date
+	updateMovieReleaseDate = `UPDATE movies SET release_date = $2 WHERE id = $1;`
+	// SQL запрос для обновления фильма по id, rating
+	updateMovieRating = `UPDATE movies SET rating = $2 WHERE id = $1;`
+	// SQL запрос для обновления актёра по id, name
+	updateActorName = `UPDATE actors SET name = $2 WHERE id = $1;`
+	// SQL запрос для обновления актёра по id, gender
+	updateActorGender = `UPDATE actors SET gender = $2 WHERE id = $1;`
+	// SQL запрос для обновления актёра по id, date_of_birth
+	updateActorDateOfBirth = `UPDATE actors SET date_of_birth = $2 WHERE id = $1;`
 )
 
 // SQL запросы для получения данных.

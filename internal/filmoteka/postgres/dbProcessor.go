@@ -5,23 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/famusovsky/VkTestTask/internal/filmoteka/models"
 	"github.com/jmoiron/sqlx"
 )
 
-// TODO refactor
-
 // overrideDB - функция, перезаписывающая таблицы фильмотеки в БД.
 func overrideDB(db *sql.DB) error {
 	wrapErr := errors.New("error while overriding db")
-	err := dropTables(db)
-	if err != nil {
+	if err := dropTables(db); err != nil {
 		return errors.Join(wrapErr, err)
 	}
-	err = createTables(db)
-	if err != nil {
+	if err := createTables(db); err != nil {
 		return errors.Join(wrapErr, err)
 	}
 	return nil
@@ -30,24 +25,18 @@ func overrideDB(db *sql.DB) error {
 // dropTables - функция, удаляющая таблицы фильмотеки в БД.
 func dropTables(db *sql.DB) error {
 	q := strings.Join([]string{dropMovieActors, dropActors, dropMovies, dropUsers}, " ")
-
-	_, err := db.Exec(q)
-	if err != nil {
+	if _, err := db.Exec(q); err != nil {
 		return errors.Join(fmt.Errorf("error while dropping tables: %s", err))
 	}
-
 	return nil
 }
 
 // createTables - функция, добавляющая таблицы фильмотеки в БД.
 func createTables(db *sql.DB) error {
 	q := strings.Join([]string{createActors, createMovies, createUsers, createActorMovieRelations}, " ")
-
-	_, err := db.Exec(q)
-	if err != nil {
+	if _, err := db.Exec(q); err != nil {
 		return errors.Join(fmt.Errorf("error while creating tables: %s", err))
 	}
-
 	return nil
 }
 
@@ -63,6 +52,231 @@ var (
 	errCommitTx = errors.New("error while committing transaction")
 )
 
+// AddActor - добавление актёра в БД.
+func (d dbProcessor) AddActor(a models.ActorIn) (int, error) {
+	return d.addSmthWithId(addActor, "error while inserting actor", a.Name, a.Gender, a.DateOfBirth)
+}
+
+// AddUser - добавление пользователя в БД.
+func (d dbProcessor) AddUser(u models.User) (int, error) {
+	return d.addSmthWithId(addUser, "error while inserting user", u.Nickname, u.Password, u.IsAdmin)
+}
+
+// AddMovie - добавление фильма в БД.
+func (d dbProcessor) AddMovie(m models.MovieIn) (int, error) {
+	wrapErr := errors.New("error while inserting actor")
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return 0, errors.Join(wrapErr, errBeginTx, err)
+	}
+	defer tx.Rollback()
+
+	var id int
+	if err = tx.QueryRow(addMovie, m.Name, m.Description, m.ReleaseDate, *m.Rating).Scan(&id); err != nil {
+		return 0, errors.Join(wrapErr, err)
+	}
+	for _, aId := range m.Actors {
+		err = errors.Join(d.addActorToMovie(tx, aId, id))
+	}
+	if err != nil {
+		return 0, errors.Join(wrapErr, err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return 0, errors.Join(wrapErr, errCommitTx, err)
+	}
+
+	return id, err
+}
+
+// CheckUserRole - проверка роли пользователя.
+func (d dbProcessor) CheckUserRole(name string, password string) (bool, error) {
+	var isAdmin bool
+	if err := d.db.Get(&isAdmin, checkUserRole, name, password); err != nil {
+		return false, errors.Join(errors.New("error while checking user's role"), err)
+	}
+	return isAdmin, nil
+}
+
+// DeleteActor - удаление актёра из БД.
+func (d dbProcessor) DeleteActor(id int) error {
+	return d.deleteSmth(removeActor, fmt.Sprintf("error while deleting actor %d", id))
+}
+
+// DeleteMovie - удаление фильма из БД.
+func (d dbProcessor) DeleteMovie(id int) error {
+	return d.deleteSmth(removeMovie, fmt.Sprintf("error while deleting movie %d", id))
+}
+
+// GetActor - получение актёра из БД.
+func (d dbProcessor) GetActor(id int) (models.ActorOut, error) {
+	var actor models.ActorOut
+	if err := d.db.Get(&actor, getActor, id); err != nil {
+		return models.ActorOut{}, errors.Join(errors.New("error while getting actor"), err)
+	}
+	return actor, nil
+}
+
+// GetActors - получение актёров из БД.
+func (d dbProcessor) GetActors() ([]models.ActorOut, error) {
+	var actors []models.ActorOut
+	if err := d.db.Select(&actors, getActors); err != nil {
+		return nil, errors.Join(errors.New("error while getting actors"), err)
+	}
+	return actors, nil
+}
+
+// GetMovie - получение фильма из БД.
+func (d dbProcessor) GetMovie(id int) (models.MovieOut, error) {
+	wrapErr := fmt.Errorf("error while getting movie %d", id)
+	var movie models.MovieOut
+	if err := d.db.Select(&movie, getMovie); err != nil {
+		return models.MovieOut{}, errors.Join(wrapErr, err)
+	}
+	if err := d.db.Select(&movie.Actors, getMovieActors, id); err != nil {
+		return models.MovieOut{}, errors.Join(wrapErr, err)
+	}
+	return movie, nil
+}
+
+// GetMovies - получение фильмов из БД.
+func (d dbProcessor) GetMovies(sortType int) ([]models.MovieOut, error) {
+	wrapErr := errors.New("error while getting movies")
+	var movies []models.MovieOut
+	var err error
+	switch sortType {
+	case models.SortByRating:
+		err = d.db.Select(&movies, getMoviesSortByRating)
+	case models.SortByName:
+		err = d.db.Select(&movies, getMoviesSortByName)
+	case models.SortByReleaseDate:
+		err = d.db.Select(&movies, getMoviesSortByReleaseDate)
+	}
+	if err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+
+	if err = d.fillMovies(movies); err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+	return movies, nil
+}
+
+// GetMoviesByActor - получение фильмов, в которых играл актёр, из БД.
+func (d dbProcessor) GetMoviesByActor(name string) ([]models.MovieOut, error) {
+	wrapErr := errors.New("error while getting movies by actor")
+	var movies []models.MovieOut
+	if err := d.db.Select(&movies, getMoviesByActor, name); err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+	if err := d.fillMovies(movies); err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+	return movies, nil
+}
+
+// GetMoviesByName - получение фильмов по фрагменту названия из БД.
+func (d dbProcessor) GetMoviesByName(name string) ([]models.MovieOut, error) {
+	wrapErr := errors.New("error while getting movies by name")
+	var movies []models.MovieOut
+	if err := d.db.Select(&movies, getMoviesByName, name); err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+	if err := d.fillMovies(movies); err != nil {
+		return nil, errors.Join(wrapErr, err)
+	}
+	return movies, nil
+}
+
+// UpdateActor - обновление актёра в БД.
+func (d dbProcessor) UpdateActor(id int, a models.ActorIn) error {
+	wrapErr := fmt.Errorf("error while updating actor %d", id)
+	tx, err := d.db.Begin()
+	if err != nil {
+		return errors.Join(wrapErr, errBeginTx, err)
+	}
+	defer tx.Rollback()
+
+	if a.Name != "" {
+		if _, err = tx.Exec(updateActorName, id, a.Name); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+	if a.Gender != "" {
+		if _, err = tx.Exec(updateActorGender, id, a.Gender); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+	if !a.DateOfBirth.IsZero() {
+		if _, err = tx.Exec(updateActorDateOfBirth, id, a.DateOfBirth); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return errors.Join(wrapErr, errCommitTx, err)
+	}
+	return nil
+}
+
+// UpdateMovie - обновление фильма в БД.
+func (d dbProcessor) UpdateMovie(id int, m models.MovieIn) error {
+	wrapErr := fmt.Errorf("error while updating movie %d", id)
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return errors.Join(wrapErr, errBeginTx, err)
+	}
+	defer tx.Rollback()
+
+	if m.Name != "" {
+		if _, err = tx.Exec(updateMovieName, id, m.Name); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+	if m.Description != "" {
+		if _, err = tx.Exec(updateMovieDescription, id, m.Description); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+	if !m.ReleaseDate.IsZero() {
+		if _, err = tx.Exec(updateMovieReleaseDate, id, m.ReleaseDate); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+	if m.Rating != nil {
+		if _, err = tx.Exec(updateMovieRating, id, *m.Rating); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+	}
+
+	if _, err = tx.Exec(removeMovieFromActors, id); err != nil {
+		return errors.Join(wrapErr, err)
+	}
+	for _, aId := range m.Actors {
+		err = errors.Join(d.addActorToMovie(tx, aId, id))
+	}
+	if err != nil {
+		return errors.Join(wrapErr, err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return errors.Join(wrapErr, errCommitTx, err)
+	}
+
+	return nil
+}
+
+// addActorToMovie - добавление актёра в фильм.
+func (d dbProcessor) addActorToMovie(tx *sqlx.Tx, actorId, movieId int) error {
+	_, err := tx.Exec(addActorToMovie, movieId, actorId)
+	if err != nil {
+		return errors.Join(fmt.Errorf("error while adding actor %d to movie %d", actorId, movieId), err)
+	}
+
+	return nil
+}
+
+// addSmthWithId - добавление чего-либо в БД с возвращением id.
 func (d dbProcessor) addSmthWithId(query string, wrap string, args ...any) (int, error) {
 	wrapErr := errors.New(wrap)
 	tx, err := d.db.Begin()
@@ -85,70 +299,7 @@ func (d dbProcessor) addSmthWithId(query string, wrap string, args ...any) (int,
 	return id, nil
 }
 
-// AddActor implements DbHandler.
-func (d dbProcessor) AddActor(name string, gender string, dateOfBirth time.Time) (int, error) {
-	return d.addSmthWithId(addActor,
-		"error while inserting actor",
-		name, gender, dateOfBirth)
-}
-
-// AddUser implements DbHandler.
-func (d dbProcessor) AddUser(name string, password string, isAdmin bool) (int, error) {
-	return d.addSmthWithId(addUser,
-		"error while inserting user",
-		name, password, isAdmin)
-}
-
-// AddMovie implements DbHandler.
-func (d dbProcessor) AddMovie(name string, description string, releaseDate time.Time, rating int, actors []int) (int, error) {
-	wrapErr := errors.New("error while inserting actor")
-	tx, err := d.db.Begin()
-	if err != nil {
-		return 0, errors.Join(wrapErr, errBeginTx, err)
-	}
-	defer tx.Rollback()
-
-	var id int
-	err = tx.QueryRow(addMovie, name, description, releaseDate, rating).Scan(&id)
-	if err != nil {
-		return 0, errors.Join(wrapErr, err)
-	}
-
-	for _, actorId := range actors {
-		err := d.addActorToMovie(tx, actorId, id)
-		if err != nil {
-			return 0, errors.Join(wrapErr, err)
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return 0, errors.Join(wrapErr, errCommitTx, err)
-	}
-
-	return id, nil
-}
-
-func (d dbProcessor) addActorToMovie(tx *sql.Tx, actorId, movieId int) error {
-	_, err := tx.Exec(addActorToMovie, movieId, actorId)
-	if err != nil {
-		return errors.Join(fmt.Errorf("error while adding actor %d to movie %d", actorId, movieId), err)
-	}
-
-	return nil
-}
-
-// CheckUserRole implements DbHandler.
-func (d dbProcessor) CheckUserRole(name string, password string) (bool, error) {
-	var isAdmin bool
-	err := d.db.Get(&isAdmin, checkUserRole, name, password)
-	if err != nil {
-		return false, errors.Join(errors.New("error while user's role"), err)
-	}
-
-	return isAdmin, nil
-}
-
+// deleteSmth - удаление чего-либо из БД.
 func (d dbProcessor) deleteSmth(query, errTxt string, args ...any) error {
 	wrapErr := errors.New(errTxt)
 	tx, err := d.db.Begin()
@@ -170,56 +321,8 @@ func (d dbProcessor) deleteSmth(query, errTxt string, args ...any) error {
 	return nil
 }
 
-// DeleteActor implements DbHandler.
-func (d dbProcessor) DeleteActor(id int) error {
-	return d.deleteSmth(removeActor, fmt.Sprintf("error while deleting actor %d", id))
-}
-
-// DeleteMovie implements DbHandler.
-func (d dbProcessor) DeleteMovie(id int) error {
-	return d.deleteSmth(removeMovie, fmt.Sprintf("error while deleting movie %d", id))
-}
-
-// GetActor implements DbHandler.
-func (d dbProcessor) GetActor(id int) (models.Actor, error) {
-	var actor models.Actor
-	err := d.db.Get(&actor, getActor, id)
-	if err != nil {
-		return models.Actor{}, errors.Join(errors.New("error while getting actor"), err)
-	}
-
-	return actor, nil
-}
-
-// GetActors implements DbHandler.
-func (d dbProcessor) GetActors() ([]models.Actor, error) {
-	var actors []models.Actor
-	err := d.db.Select(&actors, getActors)
-	if err != nil {
-		return nil, errors.Join(errors.New("error while getting actors"), err)
-	}
-
-	return actors, nil
-}
-
-// GetMovie implements DbHandler.
-func (d dbProcessor) GetMovie(id int) (models.Movie, error) {
-	wrapErr := fmt.Errorf("error while getting movie %d", id)
-	var movie models.Movie
-	err := d.db.Select(&movie, getMovie)
-	if err != nil {
-		return models.Movie{}, errors.Join(wrapErr, err)
-	}
-
-	err = d.db.Select(&movie.Actors, getMovieActors, id)
-	if err != nil {
-		return models.Movie{}, errors.Join(wrapErr, err)
-	}
-
-	return movie, nil
-}
-
-func (d dbProcessor) fillMovies(movies []models.Movie) error {
+// fillMovies - заполнение фильмов актёрами.
+func (d dbProcessor) fillMovies(movies []models.MovieOut) error {
 	for i := range len(movies) {
 		err := d.db.Select(&movies[i].Actors, getMovieActors, movies[i].Id)
 		if err != nil {
@@ -228,121 +331,4 @@ func (d dbProcessor) fillMovies(movies []models.Movie) error {
 	}
 
 	return nil
-}
-
-// GetMovies implements DbHandler.
-func (d dbProcessor) GetMovies(sortType int) ([]models.Movie, error) {
-	wrapErr := errors.New("error while getting movies")
-	var movies []models.Movie
-	var err error
-	switch sortType {
-	case models.SortByRating:
-		err = d.db.Select(&movies, getMoviesSortByRating)
-	case models.SortByName:
-		err = d.db.Select(&movies, getMoviesSortByName)
-	case models.SortByReleaseDate:
-		err = d.db.Select(&movies, getMoviesSortByReleaseDate)
-	}
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	err = d.fillMovies(movies)
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	return movies, nil
-}
-
-// GetMoviesByActor implements DbHandler.
-func (d dbProcessor) GetMoviesByActor(name string) ([]models.Movie, error) {
-	wrapErr := errors.New("error while getting movies by actor")
-	var movies []models.Movie
-	err := d.db.Select(&movies, getMoviesByActor, name)
-
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	err = d.fillMovies(movies)
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	return movies, nil
-}
-
-// GetMoviesByName implements DbHandler.
-func (d dbProcessor) GetMoviesByName(name string) ([]models.Movie, error) {
-	wrapErr := errors.New("error while getting movies by name")
-	var movies []models.Movie
-	err := d.db.Select(&movies, getMoviesByName, name)
-
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	err = d.fillMovies(movies)
-	if err != nil {
-		return nil, errors.Join(wrapErr, err)
-	}
-
-	return movies, nil
-}
-
-// UpdateActor implements DbHandler.
-func (d dbProcessor) UpdateActor(id int, name string, gender string, dateOfBirth time.Time) error {
-	wrapErr := fmt.Errorf("error while updating actor %d", id)
-	tx, err := d.db.Begin()
-	if err != nil {
-		return errors.Join(wrapErr, errBeginTx, err)
-	}
-	defer tx.Rollback()
-
-	_, err = tx.Exec(updateActor, id, name, gender, dateOfBirth)
-	if err != nil {
-		return errors.Join(wrapErr, err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return errors.Join(wrapErr, errCommitTx, err)
-	}
-
-	return err
-}
-
-// UpdateMovie implements DbHandler.
-func (d dbProcessor) UpdateMovie(id int, name string, description string, releaseDate time.Time, rating int, actors []int) error {
-	wrapErr := fmt.Errorf("error while updating movie %d", id)
-	tx, err := d.db.Begin()
-	if err != nil {
-		return errors.Join(wrapErr, errBeginTx, err)
-	}
-	defer tx.Rollback()
-
-	_, err = tx.Exec(updateMovie, id, name, description, releaseDate, rating)
-	if err != nil {
-		return errors.Join(wrapErr, err)
-	}
-
-	_, err = tx.Exec(removeMovieFromActors, id)
-	if err != nil {
-		return errors.Join(wrapErr, err)
-	}
-
-	for _, actorId := range actors {
-		err := d.addActorToMovie(tx, actorId, id)
-		if err != nil {
-			return errors.Join(wrapErr, err)
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return errors.Join(wrapErr, errCommitTx, err)
-	}
-
-	return err
 }

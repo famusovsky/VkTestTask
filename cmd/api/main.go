@@ -12,8 +12,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TODO logging
-// TODO rating bounds
+// TODO testing
 
 // @title			Filemoteka API
 // @description	This is a Filmoteka API server, made for Vk Trainee Assignment 2024.
@@ -36,13 +35,6 @@ func main() {
 	if err != nil {
 		errorLog.Fatal(err)
 	}
-
-	// fiberApp := fiber.New()
-	// fiberApp.Get("/", func(c *fiber.Ctx) error {
-	// 	return c.SendString("Hello, World!")
-	// })
-
-	// fiberApp.Listen(*addr)
 
 	app := filmoteka.CreateApp(*addr, infoLog, errorLog, dbHandler)
 

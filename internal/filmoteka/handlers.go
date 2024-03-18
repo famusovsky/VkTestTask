@@ -10,17 +10,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// TODO comments
-// TODO wrap errors
-
 // AddActor - обрабатывает http запрос на добавление актёра в фильмотеку.
 //
 // @Summary      Adds actor to the System.
-// @Description  Add actor to the System and get it's ID. User should be an admin.
+// @Description  Add actor to the System and get it's ID. User should be an admin. All fields are required.
 // @Tags         Actor
 // @Accept       json
 // @Produce      json
-// @Param        actor body models.Actor true "Actor to be added"
+// @Param        actor body models.ActorIn true "Actor to be added"
 // @Security BasicAuth
 // @Success      200 {integer} int "ID of the added actor"
 // @Failure      400 {string} string "Bad request"
@@ -31,28 +28,27 @@ func (app *App) AddActor(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to add a new actor")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to add a new actor not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to add a new actor not an admin", http.StatusForbidden)
 		return
 	}
 
-	var actor models.Actor
+	var actor models.ActorIn
 	d := json.NewDecoder(r.Body)
-	if err := d.Decode(&actor); err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err = d.Decode(&actor); err == nil {
+		err = actor.Check()
+	}
+	if err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id, err := app.dbHandler.AddActor(actor.Name, actor.Gender, actor.DateOfBirth)
+	id, err := app.dbHandler.AddActor(actor)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -63,12 +59,12 @@ func (app *App) AddActor(w http.ResponseWriter, r *http.Request) {
 // UpdateActor - обрабатывает http запрос на обновление актёра в фильмотеке.
 //
 // @Summary      Updates actor in the System.
-// @Description  Update actor in the System. User should be an admin.
+// @Description  Update actor in the System. User should be an admin. All fields are not required.
 // @Tags         Actor
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "ID of the actor to be updated"
-// @Param        actor body models.Actor true "Actor data to be updated"
+// @Param        actor body models.ActorIn true "Actor data to be updated"
 // @Security BasicAuth
 // @Success      200 {string} string "OK"
 // @Failure      400 {string} string "Bad request"
@@ -79,36 +75,29 @@ func (app *App) UpdateActor(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to update an actor")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to update an actor not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to update an actor not an admin", http.StatusForbidden)
 		return
 	}
 
-	// TODO обновлять только то, что пришло в запросе
-
-	var actor models.Actor
+	var actor models.ActorIn
 	d := json.NewDecoder(r.Body)
 	if err := d.Decode(&actor); err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		handleError(app.errorLog, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, "id must be an integer", http.StatusBadRequest)
+		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)
 		return
 	}
-	err = app.dbHandler.UpdateActor(id, actor.Name, actor.Gender, actor.DateOfBirth)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	if err := app.dbHandler.UpdateActor(id, actor); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -133,25 +122,21 @@ func (app *App) DeleteActor(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to delete an actor")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to delete an actor not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to delete an actor not an admin", http.StatusForbidden)
 		return
 	}
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, "id must be an integer", http.StatusBadRequest)
+		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)
 		return
 	}
-	err = app.dbHandler.DeleteActor(id)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	if err := app.dbHandler.DeleteActor(id); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -167,7 +152,7 @@ func (app *App) DeleteActor(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        id path int true "ID of the actor to be getted"
 // @Security BasicAuth
-// @Success      200 {object} models.Actor
+// @Success      200 {object} models.ActorOut
 // @Failure      400 {string} string "Bad request"
 // @Failure      500 {string} string "Internal server error"
 // @Failure      403 {string} string "User does not exist"
@@ -176,21 +161,18 @@ func (app *App) GetActor(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to get an actor")
 	_, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, "id must be an integer", http.StatusBadRequest)
+		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)
 		return
 	}
 	actor, err := app.dbHandler.GetActor(id)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -205,24 +187,21 @@ func (app *App) GetActor(w http.ResponseWriter, r *http.Request) {
 // @Tags         Actor
 // @Produce      json
 // @Security BasicAuth
-// @Success      200 {array} models.Actor
+// @Success      200 {array} models.ActorOut
 // @Failure      400 {string} string "Bad request"
 // @Failure      500 {string} string "Internal server error"
 // @Failure      403 {string} string "User does not exist"
 // @Router       /actors [get]
 func (app *App) GetActors(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to get list of actors")
-	_, err := app.authIsAdmin(r)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if _, err := app.authIsAdmin(r); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	actors, err := app.dbHandler.GetActors()
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -237,7 +216,7 @@ func (app *App) GetActors(w http.ResponseWriter, r *http.Request) {
 // @Tags         Movie
 // @Accept       json
 // @Produce      json
-// @Param        movie body models.Movie true "Movie to be added"
+// @Param        movie body models.MovieIn true "Movie to be added"
 // @Security BasicAuth
 // @Success      200 {integer} int "ID of the added movie"
 // @Failure      400 {string} string "Bad request"
@@ -248,28 +227,27 @@ func (app *App) AddMovie(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to add a new movie")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to add a new movie not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to add a new movie not an admin", http.StatusForbidden)
 		return
 	}
 
-	var movie models.Movie
+	var movie models.MovieIn
 	d := json.NewDecoder(r.Body)
-	if err := d.Decode(&movie); err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err = d.Decode(&movie); err == nil {
+		err = movie.Check()
+	}
+	if err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id, err := app.dbHandler.AddMovie(movie.Name, movie.Description, movie.ReleaseDate, movie.Rating, movie.Actors)
+	id, err := app.dbHandler.AddMovie(movie)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -294,25 +272,21 @@ func (app *App) DeleteMovie(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to delete a movie")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to delete an movie not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to delete a movie not an admin", http.StatusForbidden)
 		return
 	}
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, "id must be an integer", http.StatusBadRequest)
+		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)
 		return
 	}
-	err = app.dbHandler.DeleteMovie(id)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	if err := app.dbHandler.DeleteMovie(id); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -328,7 +302,7 @@ func (app *App) DeleteMovie(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "ID of the movie to be updated"
-// @Param        movie body models.Movie true "Movie data to be updated"
+// @Param        movie body models.MovieIn true "Movie data to be updated"
 // @Security BasicAuth
 // @Success      200 {string} string "OK"
 // @Failure      400 {string} string "Bad request"
@@ -339,34 +313,29 @@ func (app *App) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to update a movie")
 	isAdmin, err := app.authIsAdmin(r)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 	if !isAdmin {
-		app.infoLog.Println("user trying to update a movie not an admin")
-		http.Error(w, "user not an admin", http.StatusForbidden)
+		handleError(app.errorLog, w, "user trying to update a movie not an admin", http.StatusForbidden)
 		return
 	}
 
-	var movie models.Movie
+	var movie models.MovieIn
 	d := json.NewDecoder(r.Body)
 	if err := d.Decode(&movie); err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		handleError(app.errorLog, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, "id must be an integer", http.StatusBadRequest)
+		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)
 		return
 	}
-	err = app.dbHandler.UpdateMovie(id, movie.Name, movie.Description, movie.ReleaseDate, movie.Rating, movie.Actors)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	if err := app.dbHandler.UpdateMovie(id, movie); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -382,16 +351,14 @@ func (app *App) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        sort query string false "Sort movies by name, release date or rating"
 // @Security BasicAuth
-// @Success      200 {array} models.Movie
+// @Success      200 {array} models.MovieOut
 // @Failure      500 {string} string "Internal server error"
 // @Failure      403 {string} string "User does not exist"
 // @Router       /movies [get]
 func (app *App) GetMovies(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to get list of movies")
-	_, err := app.authIsAdmin(r)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if _, err := app.authIsAdmin(r); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -413,8 +380,7 @@ func (app *App) GetMovies(w http.ResponseWriter, r *http.Request) {
 	}
 	movies, err := app.dbHandler.GetMovies(sortBy)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -430,24 +396,21 @@ func (app *App) GetMovies(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        name path string true "Name of the movie to be getted"
 // @Security BasicAuth
-// @Success      200 {array} models.Movie
+// @Success      200 {array} models.MovieOut
 // @Failure      500 {string} string "Internal server error"
 // @Failure      403 {string} string "User does not exist"
 // @Router       /movies/name/{name} [get]
 func (app *App) GetMoviesByName(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to get list of movies by searching the name")
-	_, err := app.authIsAdmin(r)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if _, err := app.authIsAdmin(r); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	name := r.PathValue("name")
 	movies, err := app.dbHandler.GetMoviesByName(name)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -463,24 +426,21 @@ func (app *App) GetMoviesByName(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        actor path string true "Name of the actor to be getted"
 // @Security BasicAuth
-// @Success      200 {array} models.Movie
+// @Success      200 {array} models.MovieOut
 // @Failure      500 {string} string "Internal server error"
 // @Failure      403 {string} string "User does not exist"
 // @Router       /movies/actor/{actor} [get]
 func (app *App) GetMoviesByActor(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to get list of movies by searching the actor")
-	_, err := app.authIsAdmin(r)
-	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if _, err := app.authIsAdmin(r); err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
 		return
 	}
 
 	actor := r.PathValue("actor")
 	movies, err := app.dbHandler.GetMoviesByActor(actor)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -504,26 +464,36 @@ func (app *App) GetMoviesByActor(w http.ResponseWriter, r *http.Request) {
 // @Router       /users [post]
 func (app *App) AddUser(w http.ResponseWriter, r *http.Request) {
 	app.infoLog.Println("trying to add a new user")
+	isAdmin, err := app.authIsAdmin(r)
+	if err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusForbidden)
+		return
+	}
+	if !isAdmin {
+		handleError(app.errorLog, w, "user trying to add a new movie not an admin", http.StatusForbidden)
+		return
+	}
 
 	var user models.User
 	d := json.NewDecoder(r.Body)
-	if err := d.Decode(&user); err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err = d.Decode(&user); err == nil {
+		err = user.Check()
+	}
+	if err != nil {
+		handleError(app.errorLog, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 8)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	user.Password = string(hashedPassword)
 
-	id, err := app.dbHandler.AddUser(user.Nickname, string(hashedPassword), user.IsAdmin)
+	id, err := app.dbHandler.AddUser(user)
 	if err != nil {
-		app.errorLog.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(app.errorLog, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

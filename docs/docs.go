@@ -22,7 +22,7 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Add actor to the System and get it's ID. User should be an admin.",
+                "description": "Add actor to the System and get it's ID. User should be an admin. All fields are required.",
                 "consumes": [
                     "application/json"
                 ],
@@ -40,7 +40,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Actor"
+                            "$ref": "#/definitions/models.ActorIn"
                         }
                     }
                 ],
@@ -100,7 +100,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Actor"
+                            "$ref": "#/definitions/models.ActorOut"
                         }
                     },
                     "400": {
@@ -129,7 +129,7 @@ const docTemplate = `{
                         "BasicAuth": []
                     }
                 ],
-                "description": "Update actor in the System. User should be an admin.",
+                "description": "Update actor in the System. User should be an admin. All fields are not required.",
                 "consumes": [
                     "application/json"
                 ],
@@ -154,7 +154,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Actor"
+                            "$ref": "#/definitions/models.ActorIn"
                         }
                     }
                 ],
@@ -257,7 +257,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Actor"
+                                "$ref": "#/definitions/models.ActorOut"
                             }
                         }
                     },
@@ -307,7 +307,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Movie"
+                            "$ref": "#/definitions/models.MovieIn"
                         }
                     }
                 ],
@@ -371,7 +371,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Movie"
+                            "$ref": "#/definitions/models.MovieIn"
                         }
                     }
                 ],
@@ -482,7 +482,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Movie"
+                                "$ref": "#/definitions/models.MovieOut"
                             }
                         }
                     },
@@ -531,7 +531,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Movie"
+                                "$ref": "#/definitions/models.MovieOut"
                             }
                         }
                     },
@@ -580,7 +580,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Movie"
+                                "$ref": "#/definitions/models.MovieOut"
                             }
                         }
                     },
@@ -658,7 +658,24 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.Actor": {
+        "models.ActorIn": {
+            "type": "object",
+            "properties": {
+                "date_of_birth": {
+                    "description": "DateOfBirth - дата рождения актёра.",
+                    "type": "string"
+                },
+                "gender": {
+                    "description": "Gender - пол актёра.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name - имя актёра.",
+                    "type": "string"
+                }
+            }
+        },
+        "models.ActorOut": {
             "type": "object",
             "properties": {
                 "date_of_birth": {
@@ -686,7 +703,35 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Movie": {
+        "models.MovieIn": {
+            "type": "object",
+            "properties": {
+                "actors": {
+                    "description": "Actors - список id актёров, принимавших участие в фильме.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "description": "Description - описание фильма.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name - название фильма.",
+                    "type": "string"
+                },
+                "rating": {
+                    "description": "Rating - рэйтинг фильма.",
+                    "type": "integer"
+                },
+                "release_date": {
+                    "description": "ReleaseDate - дата выпуска фильма.",
+                    "type": "string"
+                }
+            }
+        },
+        "models.MovieOut": {
             "type": "object",
             "properties": {
                 "actors": {
@@ -721,10 +766,6 @@ const docTemplate = `{
         "models.User": {
             "type": "object",
             "properties": {
-                "id": {
-                    "description": "Id - id пользователя.",
-                    "type": "integer"
-                },
                 "is_admin": {
                     "description": "IsAdmin - флаг, указывающий на то, является ли пользователь администратором.",
                     "type": "boolean"
@@ -733,7 +774,7 @@ const docTemplate = `{
                     "description": "Nickname - никнейм (логин) пользователя.",
                     "type": "string"
                 },
-                "password db:": {
+                "password": {
                     "description": "Password - пароль пользователя.",
                     "type": "string"
                 }

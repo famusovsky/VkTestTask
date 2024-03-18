@@ -3,14 +3,15 @@ package filmoteka
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-// TODO comments
-// TODO wrap errors
-
+// sendJson - отправка json-ответа.
+//
+// Принимает: ResponseWriter и любой объект.
 func (app *App) sendJson(w http.ResponseWriter, obj any) {
 	js, err := json.Marshal(obj)
 	if err != nil {
@@ -27,6 +28,11 @@ func (app *App) sendJson(w http.ResponseWriter, obj any) {
 	}
 }
 
+// authIsAdmin - проверка прав пользователя.
+//
+// Принимает: http.Request.
+//
+// Возвращает: true, если пользователь админ, иначе false и ошибку.
 func (app *App) authIsAdmin(r *http.Request) (bool, error) {
 	nick, pswd, ok := r.BasicAuth()
 	if !ok {
@@ -48,4 +54,12 @@ func (app *App) authIsAdmin(r *http.Request) (bool, error) {
 	}
 
 	return isAdmin, nil
+}
+
+// handleError - обработка ошибок.
+//
+// Принимает: логгер, ResponseWriter, сообщение и http-статус.
+func handleError(log *log.Logger, w http.ResponseWriter, msg string, status int) {
+	log.Println(msg)
+	http.Error(w, msg, status)
 }
