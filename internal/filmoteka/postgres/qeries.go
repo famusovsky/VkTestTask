@@ -95,7 +95,7 @@ const (
 	// SQL запрос для получения фильмов, в которых играл актёр, по actor_id.
 	getActorMovies = `SELECT movie_id FROM movie_actors WHERE actor_id = $1;`
 	// SQL запрос для получения фильма по id.
-	getMovie = `SELECT * FROM movies WHERE id = $1`
+	getMovie = `SELECT * FROM movies WHERE id = $1;`
 	// SQL запрос для получения актёров, которые играли в фильме, по movie_id.
 	getMovieActors = `SELECT actor_id FROM movie_actors WHERE movie_id = $1;`
 	// SQL запрос для получения фильмов, отсортированных по рейтингу.

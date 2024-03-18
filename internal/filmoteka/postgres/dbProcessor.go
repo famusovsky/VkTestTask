@@ -64,7 +64,7 @@ func (d dbProcessor) AddUser(u models.User) (int, error) {
 
 // AddMovie - добавление фильма в БД.
 func (d dbProcessor) AddMovie(m models.MovieIn) (int, error) {
-	wrapErr := errors.New("error while inserting actor")
+	wrapErr := errors.New("error while inserting movie")
 	tx, err := d.db.Beginx()
 	if err != nil {
 		return 0, errors.Join(wrapErr, errBeginTx, err)
@@ -77,9 +77,9 @@ func (d dbProcessor) AddMovie(m models.MovieIn) (int, error) {
 	}
 	for _, aId := range m.Actors {
 		err = errors.Join(d.addActorToMovie(tx, aId, id))
-	}
-	if err != nil {
-		return 0, errors.Join(wrapErr, err)
+		if err != nil {
+			return 0, errors.Join(wrapErr, err)
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -100,19 +100,23 @@ func (d dbProcessor) CheckUserRole(name string, password string) (bool, error) {
 
 // DeleteActor - удаление актёра из БД.
 func (d dbProcessor) DeleteActor(id int) error {
-	return d.deleteSmth(removeActor, fmt.Sprintf("error while deleting actor %d", id))
+	return d.deleteSmth(removeActor, fmt.Sprintf("error while deleting actor %d", id), id)
 }
 
 // DeleteMovie - удаление фильма из БД.
 func (d dbProcessor) DeleteMovie(id int) error {
-	return d.deleteSmth(removeMovie, fmt.Sprintf("error while deleting movie %d", id))
+	return d.deleteSmth(removeMovie, fmt.Sprintf("error while deleting movie %d", id), id)
 }
 
 // GetActor - получение актёра из БД.
 func (d dbProcessor) GetActor(id int) (models.ActorOut, error) {
+	wrapErr := fmt.Errorf("error while getting actor %d", id)
 	var actor models.ActorOut
 	if err := d.db.Get(&actor, getActor, id); err != nil {
-		return models.ActorOut{}, errors.Join(errors.New("error while getting actor"), err)
+		return models.ActorOut{}, errors.Join(wrapErr, err)
+	}
+	if err := d.db.Select(&actor.Movies, getActorMovies, id); err != nil {
+		return actor, errors.Join(wrapErr, errors.New("error while getting actors's movies"), err)
 	}
 	return actor, nil
 }
@@ -123,6 +127,11 @@ func (d dbProcessor) GetActors() ([]models.ActorOut, error) {
 	if err := d.db.Select(&actors, getActors); err != nil {
 		return nil, errors.Join(errors.New("error while getting actors"), err)
 	}
+	for i := range actors {
+		if err := d.db.Select(&actors[i].Movies, getActorMovies, actors[i].Id); err != nil {
+			return nil, errors.Join(errors.New("error while getting actors' movies"), err)
+		}
+	}
 	return actors, nil
 }
 
@@ -130,11 +139,11 @@ func (d dbProcessor) GetActors() ([]models.ActorOut, error) {
 func (d dbProcessor) GetMovie(id int) (models.MovieOut, error) {
 	wrapErr := fmt.Errorf("error while getting movie %d", id)
 	var movie models.MovieOut
-	if err := d.db.Select(&movie, getMovie); err != nil {
+	if err := d.db.Get(&movie, getMovie, id); err != nil {
 		return models.MovieOut{}, errors.Join(wrapErr, err)
 	}
 	if err := d.db.Select(&movie.Actors, getMovieActors, id); err != nil {
-		return models.MovieOut{}, errors.Join(wrapErr, err)
+		return movie, errors.Join(wrapErr, errors.New("error while getting movie's actors"), err)
 	}
 	return movie, nil
 }
@@ -157,7 +166,7 @@ func (d dbProcessor) GetMovies(sortType int) ([]models.MovieOut, error) {
 	}
 
 	if err = d.fillMovies(movies); err != nil {
-		return nil, errors.Join(wrapErr, err)
+		return nil, errors.Join(wrapErr, errors.New("error while getting movie's actors"), err)
 	}
 	return movies, nil
 }
@@ -170,7 +179,7 @@ func (d dbProcessor) GetMoviesByActor(name string) ([]models.MovieOut, error) {
 		return nil, errors.Join(wrapErr, err)
 	}
 	if err := d.fillMovies(movies); err != nil {
-		return nil, errors.Join(wrapErr, err)
+		return nil, errors.Join(wrapErr, errors.New("error while getting movie's actors"), err)
 	}
 	return movies, nil
 }
@@ -249,14 +258,16 @@ func (d dbProcessor) UpdateMovie(id int, m models.MovieIn) error {
 		}
 	}
 
-	if _, err = tx.Exec(removeMovieFromActors, id); err != nil {
-		return errors.Join(wrapErr, err)
-	}
-	for _, aId := range m.Actors {
-		err = errors.Join(d.addActorToMovie(tx, aId, id))
-	}
-	if err != nil {
-		return errors.Join(wrapErr, err)
+	if m.Actors != nil {
+		if _, err = tx.Exec(removeMovieFromActors, id); err != nil {
+			return errors.Join(wrapErr, err)
+		}
+		for _, aId := range m.Actors {
+			err = errors.Join(d.addActorToMovie(tx, aId, id))
+			if err != nil {
+				return errors.Join(wrapErr, err)
+			}
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
