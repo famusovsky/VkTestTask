@@ -192,7 +192,7 @@ func (d dbProcessor) GetMoviesByName(name string) ([]models.MovieOut, error) {
 		return nil, errors.Join(wrapErr, err)
 	}
 	if err := d.fillMovies(movies); err != nil {
-		return nil, errors.Join(wrapErr, err)
+		return nil, errors.Join(wrapErr, errors.New("error while getting movie's actors"), err)
 	}
 	return movies, nil
 }

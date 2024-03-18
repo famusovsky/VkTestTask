@@ -679,7 +679,7 @@ func TestGetMoviesByName(t *testing.T) {
 		assert.Equal(t, movies, m)
 	})
 
-	t.Run("error while getting movies by actor", func(t *testing.T) {
+	t.Run("error while getting movies by name", func(t *testing.T) {
 		db, mock, _ := sqlmock.Newx()
 		defer db.Close()
 		processor := dbProcessor{db: db}
@@ -690,7 +690,7 @@ func TestGetMoviesByName(t *testing.T) {
 		_, err := processor.GetMoviesByName(name)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errTxt)
-		assert.Contains(t, err.Error(), "error while getting movies by actor")
+		assert.Contains(t, err.Error(), "error while getting movies by name")
 	})
 
 	t.Run("error while getting actors", func(t *testing.T) {
@@ -706,7 +706,7 @@ func TestGetMoviesByName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errTxt)
 		assert.Contains(t, err.Error(), "error while getting movie's actors")
-		assert.Contains(t, err.Error(), "error while getting movies by actor")
+		assert.Contains(t, err.Error(), "error while getting movies by name")
 	})
 }
 
