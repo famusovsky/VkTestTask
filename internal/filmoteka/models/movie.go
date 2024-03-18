@@ -32,8 +32,14 @@ func (m *MovieIn) Check() error {
 	if m.Name == "" {
 		errs = append(errs, errors.New("name must not be null"))
 	}
+	if len(m.Name) > 150 {
+		errs = append(errs, errors.New("movie name must be less than 150 chars"))
+	}
 	if m.Description == "" {
 		errs = append(errs, errors.New("description must not be null"))
+	}
+	if len(m.Description) > 1000 {
+		errs = append(errs, errors.New("movie description must be less than 1000 chars"))
 	}
 	if m.ReleaseDate.IsZero() {
 		errs = append(errs, errors.New("date of release must not be null"))

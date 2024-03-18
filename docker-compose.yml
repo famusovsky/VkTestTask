@@ -24,6 +24,7 @@ services:
       args:
         - override_tables=true
         - port=${API_PORT}
+        - default_admin=true
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}

@@ -20,20 +20,22 @@ type App struct {
 	errorLog  *log.Logger
 	dbHandler postgres.DbHandler
 	addr      string
+	defAdmin  bool
 }
 
 // CreateApp - создание приложения.
 //
-// Принимает: логгер, обработчик БД.
+// Принимает: адрес, логгер информации, логгер ошибок, обработчик БД, указатель на существование базового администратора.
 //
 // Возвращает: приложение.
 func CreateApp(addr string, infoLog *log.Logger, errorLog *log.Logger,
-	dbHandler postgres.DbHandler) *App {
+	dbHandler postgres.DbHandler, defAdmin bool) *App {
 	return &App{
 		infoLog:   infoLog,
 		errorLog:  errorLog,
 		dbHandler: dbHandler,
 		addr:      addr,
+		defAdmin:  defAdmin,
 	}
 }
 

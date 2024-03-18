@@ -20,6 +20,7 @@ import (
 func main() {
 	addr := flag.String("addr", ":8080", "HTTP address")
 	overrideTables := flag.Bool("override_tables", false, "Override tables in database")
+	defaultAdmin := flag.Bool("default_admin", false, "Add default admin (admin|admin) to database")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -36,7 +37,7 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
-	app := filmoteka.CreateApp(*addr, infoLog, errorLog, dbHandler)
+	app := filmoteka.CreateApp(*addr, infoLog, errorLog, dbHandler, *defaultAdmin)
 
 	app.Run()
 }

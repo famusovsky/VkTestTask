@@ -328,6 +328,19 @@ func (app *App) UpdateMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(movie.Name) > 150 {
+		handleError(app.errorLog, w, "movie name must be less than 150 chars", http.StatusBadRequest)
+		return
+	}
+	if len(movie.Description) > 150 {
+		handleError(app.errorLog, w, "movie description must be less than 1000 chars", http.StatusBadRequest)
+		return
+	}
+	if movie.Rating != nil && *movie.Rating > 10 || *movie.Rating < 0 {
+		handleError(app.errorLog, w, "movie rating must be in range 0 - 10", http.StatusBadRequest)
+		return
+	}
+
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		handleError(app.errorLog, w, "id must be an integer", http.StatusBadRequest)

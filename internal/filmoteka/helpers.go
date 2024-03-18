@@ -39,7 +39,7 @@ func (app *App) authIsAdmin(r *http.Request) (bool, error) {
 		return false, errors.New("error parsing basic auth")
 	}
 
-	if nick == "admin" && pswd == "admin" {
+	if app.defAdmin && nick == "admin" && pswd == "admin" {
 		return true, nil
 	}
 
