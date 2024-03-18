@@ -45,9 +45,9 @@ func (m *MovieIn) Check() error {
 		errs = append(errs, errors.New("date of release must not be null"))
 	}
 	if m.Rating == nil {
-		errs = append(errs, errors.New("rating of release must not be null"))
+		errs = append(errs, errors.New("rating must not be null"))
 	} else if *m.Rating < 0 || *m.Rating > 10 {
-		errs = append(errs, errors.New("rating of release must in range 0 - 10"))
+		errs = append(errs, errors.New("rating must in range 0 - 10"))
 	}
 
 	if len(errs) != 0 {

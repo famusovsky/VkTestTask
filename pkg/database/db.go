@@ -9,19 +9,19 @@ import (
 
 // OpenViaEnvVars - открытие БД через переменные окружения.
 // Возвращает БД и ошибку.
-func OpenViaEnvVars(driver string) (*sql.DB, error) {
-	return OpenViaDsn(getDsnFromEnv(), driver)
+func OpenViaEnvVars(driver string, openFunc func(string, string) (*sql.DB, error)) (*sql.DB, error) {
+	return OpenViaDsn(getDsnFromEnv(), driver, openFunc)
 }
 
 // OpenViaDsn - открытие БД через строку DSN.
 // Принимает строку DSN.
 // Возвращает БД и ошибку.
-func OpenViaDsn(dsn string, driver string) (*sql.DB, error) {
+func OpenViaDsn(dsn, driver string, openFunc func(string, string) (*sql.DB, error)) (*sql.DB, error) {
 	if dsn == "" {
 		dsn = getDsnFromEnv()
 	}
 
-	db, err := sql.Open(driver, dsn)
+	db, err := openFunc(driver, dsn)
 	if err != nil {
 		return nil, err
 	}

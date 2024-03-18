@@ -8,4 +8,6 @@ Dockerfile
 # Folders
 .git/
 .github/
+.vscode/
+.idea/
 build/

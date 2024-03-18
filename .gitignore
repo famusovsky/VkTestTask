@@ -21,6 +21,7 @@
 
 !Dockerfile
 !docker-compose.yml
+!/.env
 
 # ...even if they are in subdirectories
 !*/

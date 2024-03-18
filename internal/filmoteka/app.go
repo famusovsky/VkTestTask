@@ -39,9 +39,13 @@ func CreateApp(addr string, infoLog *log.Logger, errorLog *log.Logger,
 	}
 }
 
+// server - интерфейс сервера.
+type server interface {
+	ListenAndServe() error
+	Shutdown(context.Context) error
+}
+
 // Run - запуск приложения.
-//
-// Принимает: адрес.
 func (app *App) Run() {
 	// Создание и запуск сервера.
 	srvr := &http.Server{
@@ -50,6 +54,15 @@ func (app *App) Run() {
 		Handler:  app.routes(),
 	}
 
+	GraceRun(srvr, app)
+}
+
+// GraceRun - грациозный запуск сервера.
+//
+// Принимает: сервер, приложение.
+//
+// Запускает сервер и ожидает сигнала завершения.
+func GraceRun(srvr server, app *App) {
 	sigQuit := make(chan os.Signal, 2)
 	signal.Notify(sigQuit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -63,7 +76,9 @@ func (app *App) Run() {
 	go func() {
 		app.infoLog.Printf("starting srvr on %s\n", app.addr)
 		err := srvr.ListenAndServe()
-		app.errorLog.Fatal(err)
+		if err != nil {
+			app.errorLog.Fatal(err)
+		}
 	}()
 
 	if err := eg.Wait(); err != nil {
@@ -71,5 +86,7 @@ func (app *App) Run() {
 	}
 
 	err := srvr.Shutdown(context.Background())
-	app.errorLog.Fatal(err)
+	if err != nil {
+		app.errorLog.Fatal(err)
+	}
 }
