@@ -1,13 +1,11 @@
 FROM golang:1.22.1-alpine
 
 WORKDIR /
-# FIXME create tables normally somehow
+
 ARG override_tables=false
 ARG port=8888
 ENV OVERRIDE=$override_tables
 ENV PORT=$port
-
-RUN echo ${port}
 
 COPY go.mod go.sum ./
 

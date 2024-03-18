@@ -19,6 +19,7 @@ type App struct {
 	infoLog   *log.Logger
 	errorLog  *log.Logger
 	dbHandler postgres.DbHandler
+	addr      string
 }
 
 // CreateApp - создание приложения.
@@ -26,22 +27,23 @@ type App struct {
 // Принимает: логгер, обработчик БД.
 //
 // Возвращает: приложение.
-func CreateApp(infoLog *log.Logger, errorLog *log.Logger,
+func CreateApp(addr string, infoLog *log.Logger, errorLog *log.Logger,
 	dbHandler postgres.DbHandler) *App {
 	return &App{
 		infoLog:   infoLog,
 		errorLog:  errorLog,
 		dbHandler: dbHandler,
+		addr:      addr,
 	}
 }
 
 // Run - запуск приложения.
 //
 // Принимает: адрес.
-func (app *App) Run(addr string) {
+func (app *App) Run() {
 	// Создание и запуск сервера.
 	srvr := &http.Server{
-		Addr:     addr,
+		Addr:     app.addr,
 		ErrorLog: app.errorLog,
 		Handler:  app.routes(),
 	}
@@ -52,14 +54,12 @@ func (app *App) Run(addr string) {
 	eg, _ := errgroup.WithContext(context.Background())
 
 	eg.Go(func() error {
-		select {
-		case s := <-sigQuit:
-			return fmt.Errorf("captured signal: %v", s)
-		}
+		s := <-sigQuit
+		return fmt.Errorf("captured signal: %v", s)
 	})
 
 	go func() {
-		app.infoLog.Printf("starting srvr on %s\n", addr)
+		app.infoLog.Printf("starting srvr on %s\n", app.addr)
 		err := srvr.ListenAndServe()
 		app.errorLog.Fatal(err)
 	}()

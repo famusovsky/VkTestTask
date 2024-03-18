@@ -1,11 +1,17 @@
 package filmoteka
 
-import "net/http"
+import (
+	"net/http"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+)
 
 // TODO
 // routes - создание маршрутов.
-func (app *App) routes() *http.ServeMux {
+func (app *App) routes() http.Handler {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 
 	// TODO
 	mux.HandleFunc("POST /actor", app.AddActor)

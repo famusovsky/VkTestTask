@@ -1,0 +1,475 @@
+definitions:
+  models.Actor:
+    properties:
+      date_of_birth:
+        description: DateOfBirth - дата рождения актёра.
+        type: string
+      gender:
+        description: Gender - пол актёра.
+        type: string
+      id:
+        description: Id - id актёра.
+        type: integer
+      movies:
+        description: Movies - список id фильмов, в которых принимал участие актёр.
+        items:
+          type: integer
+        type: array
+      name:
+        description: Name - имя актёра.
+        type: string
+    type: object
+  models.Movie:
+    properties:
+      actors:
+        description: Actors - список id актёров, принимавших участие в фильме.
+        items:
+          type: integer
+        type: array
+      description:
+        description: Description - описание фильма.
+        type: string
+      id:
+        description: Id - id фильма.
+        type: integer
+      name:
+        description: Name - название фильма.
+        type: string
+      rating:
+        description: Rating - рэйтинг фильма.
+        type: integer
+      release_date:
+        description: ReleaseDate - дата выпуска фильма.
+        type: string
+    type: object
+  models.User:
+    properties:
+      id:
+        description: Id - id пользователя.
+        type: integer
+      is_admin:
+        description: IsAdmin - флаг, указывающий на то, является ли пользователь администратором.
+        type: boolean
+      nickname:
+        description: Nickname - никнейм (логин) пользователя.
+        type: string
+      'password db:':
+        description: Password - пароль пользователя.
+        type: string
+    type: object
+info:
+  contact: {}
+  description: This is a Filmoteka API server, made for Vk Trainee Assignment 2024.
+  title: Filemoteka API
+paths:
+  /actor:
+    post:
+      consumes:
+      - application/json
+      description: Add actor to the System and get it's ID. User should be an admin.
+      parameters:
+      - description: Actor to be added
+        in: body
+        name: actor
+        required: true
+        schema:
+          $ref: '#/definitions/models.Actor'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ID of the added actor
+          schema:
+            type: integer
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Adds actor to the System.
+      tags:
+      - Actor
+  /actor/{id}:
+    delete:
+      description: Delete actor from the System. User should be an admin.
+      parameters:
+      - description: ID of the actor to be deleted
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Deletes actor from the System.
+      tags:
+      - Actor
+    get:
+      description: Get actor from the System.
+      parameters:
+      - description: ID of the actor to be getted
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Actor'
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User does not exist
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get actor from the System.
+      tags:
+      - Actor
+    put:
+      consumes:
+      - application/json
+      description: Update actor in the System. User should be an admin.
+      parameters:
+      - description: ID of the actor to be updated
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Actor data to be updated
+        in: body
+        name: actor
+        required: true
+        schema:
+          $ref: '#/definitions/models.Actor'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Updates actor in the System.
+      tags:
+      - Actor
+  /actors:
+    get:
+      description: Get actors from the System.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Actor'
+            type: array
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User does not exist
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get actors from the System.
+      tags:
+      - Actor
+  /movie:
+    post:
+      consumes:
+      - application/json
+      description: Add movie to the System and get it's ID. User should be an admin.
+      parameters:
+      - description: Movie to be added
+        in: body
+        name: movie
+        required: true
+        schema:
+          $ref: '#/definitions/models.Movie'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ID of the added movie
+          schema:
+            type: integer
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Adds movie to the System.
+      tags:
+      - Movie
+  /movie/{id}:
+    delete:
+      description: Delete movie from the System. User should be an admin.
+      parameters:
+      - description: ID of the movie to be deleted
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Deletes movie from the System.
+      tags:
+      - Movie
+    put:
+      consumes:
+      - application/json
+      description: Update movie in the System. User should be an admin.
+      parameters:
+      - description: ID of the movie to be updated
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Movie data to be updated
+        in: body
+        name: movie
+        required: true
+        schema:
+          $ref: '#/definitions/models.Movie'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Updates movie in the System.
+      tags:
+      - Movie
+  /movies:
+    get:
+      description: Get movies from the System.
+      parameters:
+      - description: Sort movies by name, release date or rating
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Movie'
+            type: array
+        "403":
+          description: User does not exist
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get movies from the System.
+      tags:
+      - Movie
+  /movies/actor/{actor}:
+    get:
+      description: Get movies from the System by actor.
+      parameters:
+      - description: Name of the actor to be getted
+        in: path
+        name: actor
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Movie'
+            type: array
+        "403":
+          description: User does not exist
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get movies from the System by actor.
+      tags:
+      - Movie
+  /movies/name/{name}:
+    get:
+      description: Get movies from the System by name.
+      parameters:
+      - description: Name of the movie to be getted
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Movie'
+            type: array
+        "403":
+          description: User does not exist
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Get movies from the System by name.
+      tags:
+      - Movie
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Add user to the System and get it's ID. User should be an admin.
+      parameters:
+      - description: User to be added
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ID of the added user
+          schema:
+            type: integer
+        "400":
+          description: Bad request
+          schema:
+            type: string
+        "403":
+          description: User not an admin
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BasicAuth: []
+      summary: Adds user to the System.
+      tags:
+      - User
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

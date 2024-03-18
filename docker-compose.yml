@@ -1,6 +1,6 @@
 services:
   db:
-    container_name: compose_postgres
+    container_name: ${DB_HOST}
     image: postgres:latest
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -17,7 +17,7 @@ services:
       retries: 5
 
   api:
-    container_name: api
+    container_name: filmoteka-api
     build:
       context: .
       dockerfile: Dockerfile
